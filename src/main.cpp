@@ -37,8 +37,8 @@ int main(int argc, char const *argv[])
     // 4. accept a connection on the socket
     sockaddr_in client;
     socklen_t clientsize = sizeof(client);
-    char host(NI_MAXHOST);
-    char svc(NI_MAXSERV);
+    char host[NI_MAXHOST];
+    char svc[NI_MAXSERV];
 
     int clientsocket = accept(listening, reinterpret_cast<sockaddr *>(&client), reinterpret_cast<socklen_t *>(&clientsize));
 
@@ -49,10 +49,44 @@ int main(int argc, char const *argv[])
     }
 
     // 5. close the socket for listening
-    
-    // 6. display the receiving message
-    // 7. close the socket
+    close(listening);
+    memset(host, 0, NI_MAXHOST);
+    memset(svc, 0, NI_MAXSERV);
 
-    std::cout << "hello world" << std::endl;
+    int result = getnameinfo(reinterpret_cast<sockaddr*>(&client),sizeof(client), host, NI_MAXHOST, svc, NI_MAXSERV, 0);
+
+    if(result){
+        std::cout<< host << "connected on : " << svc <<std::endl; 
+    }else{
+        inet_ntop(AF_INET, &client.sin_addr, host, NI_MAXHOST);
+        std::cout<< host << "connected on : " << ntohs(client.sin_port)<< std::endl;
+    }
+
+    // 6. display the receiving message
+
+    char buf[4096];
+    while(true){
+        //clear the buffer
+        memset(buf, 0, 4096);
+        //wait for a message
+        int bytesRecv = recv(clientsocket, buf, 4096, 0);
+        if(bytesRecv == -1){
+            std::cerr << "there was a connection issue, message not received" <<std::endl;
+            break;
+        }
+
+        if(bytesRecv == 0){
+            std::cout<< "the client has been disconnected" <<std::endl;
+            break;
+        }
+
+        //display message
+        std::cout << "Received : " << std::string(buf, 0, bytesRecv) <<std::endl;
+        //resend message
+        send(clientsocket, buf, bytesRecv + 1, 0);
+    }
+
+    // 7. close the socket
+    close(clientsocket);
     return 0;
 }
